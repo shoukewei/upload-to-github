@@ -3,7 +3,9 @@ set -e
 
 echo "🚀 GitHub Project Uploader Script"
 
-# 1. Get repo info
+# --------------------------
+# 1. Get GitHub repo info
+# --------------------------
 read -p "Enter GitHub repository name: " REPO_NAME
 read -p "Public or Private repository? (public/private) [private]: " VISIBILITY
 VISIBILITY=$(echo "${VISIBILITY:-private}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
@@ -11,7 +13,29 @@ VISIBILITY=$(echo "${VISIBILITY:-private}" | tr -d '[:space:]' | tr '[:upper:]' 
 read -p "Enter initial commit message [Initial commit]: " COMMIT_MSG
 COMMIT_MSG=${COMMIT_MSG:-"Initial commit"}
 
-# 2. Optional files
+# --------------------------
+# 2. Check git user config
+# --------------------------
+AUTHOR_NAME=$(git config user.name)
+AUTHOR_EMAIL=$(git config user.email)
+
+if [ -z "$AUTHOR_NAME" ]; then
+  read -p "Enter your full name for git commits (user.name): " AUTHOR_NAME
+  git config --global user.name "$AUTHOR_NAME"
+  echo "✅ Set git user.name to '$AUTHOR_NAME'"
+fi
+
+if [ -z "$AUTHOR_EMAIL" ]; then
+  read -p "Enter your email for git commits (user.email): " AUTHOR_EMAIL
+  git config --global user.email "$AUTHOR_EMAIL"
+  echo "✅ Set git user.email to '$AUTHOR_EMAIL'"
+fi
+
+echo "📇 Using Git identity: $AUTHOR_NAME <$AUTHOR_EMAIL>"
+
+# --------------------------
+# 3. Optional file creation
+# --------------------------
 read -p "Do you want to create README.md? (y/n) [y]: " CREATE_README
 CREATE_README=$(echo "${CREATE_README:-y}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
 
@@ -21,9 +45,7 @@ CREATE_GITIGNORE=$(echo "${CREATE_GITIGNORE:-y}" | tr -d '[:space:]' | tr '[:upp
 read -p "Do you want to add a LICENSE file? (y/n) [y]: " CREATE_LICENSE
 CREATE_LICENSE=$(echo "${CREATE_LICENSE:-y}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
 
-# 3. License details
 if [ "$CREATE_LICENSE" = "y" ]; then
-  AUTHOR_NAME=$(git config user.name)
   read -p "Enter your full name for the LICENSE [$AUTHOR_NAME]: " NAME_INPUT
   AUTHOR_NAME=${NAME_INPUT:-$AUTHOR_NAME}
 
@@ -35,7 +57,9 @@ if [ "$CREATE_LICENSE" = "y" ]; then
   LICENSE_CHOICE=${LICENSE_CHOICE:-1}
 fi
 
+# --------------------------
 # 4. Git init and file creation
+# --------------------------
 git init
 
 if [ "$CREATE_README" = "y" ]; then
@@ -94,32 +118,37 @@ but WITHOUT ANY WARRANTY...
 EOF
       ;;
     *)
-      echo "❌ Invalid license choice. Skipping LICENSE generation."
+      echo "❌ Invalid license choice. Skipping LICENSE."
       ;;
   esac
-  echo "✅ Created LICENSE ($LICENSE_TYPE) for $AUTHOR_NAME"
+
+  if [ -f LICENSE ]; then
+    echo "✅ Created LICENSE ($LICENSE_TYPE) for $AUTHOR_NAME"
+  fi
 fi
 
-# 5. Commit and push
+# --------------------------
+# 5. Commit and push to GitHub
+# --------------------------
 git add .
 git commit -m "$COMMIT_MSG"
 
 if ! command -v gh &> /dev/null; then
-  echo "❌ GitHub CLI (gh) not installed. Install from https://cli.github.com/ and retry."
+  echo "❌ GitHub CLI (gh) is not installed. Please install it from https://cli.github.com/ and try again."
   exit 1
 fi
 
 if ! gh auth status &> /dev/null; then
-  echo "❌ GitHub CLI (gh) not authenticated. Run 'gh auth login' and retry."
+  echo "❌ GitHub CLI (gh) is not authenticated. Please run 'gh auth login' and try again."
   exit 1
 fi
 
 gh repo create "$REPO_NAME" --$VISIBILITY --source=. --remote=origin --push
 
 REPO_URL=$(gh repo view "$REPO_NAME" --json url -q '.url' 2>/dev/null)
-echo -e "\n🎉 Successfully pushed to GitHub:"
-echo "🔗 $REPO_URL"
-echo "You can now view your repository at $REPO_URL"
-
-
-
+if [ -n "$REPO_URL" ]; then
+  echo -e "\n🎉 Successfully pushed to GitHub:"
+  echo "🔗 $REPO_URL"
+else
+  echo "⚠️ Repo created but URL not detected. Please verify on GitHub manually."
+fi
