@@ -30,3 +30,7 @@ chmod +x upload_to_github.sh
 ./upload_to_github.sh
 ```
 Reference to the post article: Automate GitHub Uploads with a Bash Script (in Seconds) https://medium.com/@shouke.wei/automate-github-uploads-with-a-bash-script-in-seconds-290e0cb31ba3
+4. For windows, run:
+```
+.\upload_to_github.ps1
+```
